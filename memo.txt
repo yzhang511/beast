@@ -1,0 +1,1 @@
+beast extract --frames-per-video 2500 --input /work/nvme/bezq/yzhang39/brainwidemap/raw_video/4b00df29-3769-43be-bb40-128b1cba6d35-right --output /work/nvme/bezq/yzhang39/brainwidemap/beast/extracted_frames/4b00df29-3769-43be-bb40-128b1cba6d35

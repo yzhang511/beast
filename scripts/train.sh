@@ -8,51 +8,29 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=100000
-#SBATCH --time 1-00:00
+#SBATCH --time 0-08:00
 #SBATCH --export=ALL
 
-eid=${1:-none}
-camera=${2:-none}
-
-if [ "$eid" = "none" ]; then
-  echo "Error: Eid not provided." >&2
-  exit 1
-fi
-
-if [ "$camera" = "none" ]; then
-  echo "Error: Camera not provided." >&2
-  exit 1
-fi
+data_path=${1}
+checkpoint_path=${2}
+config_path=${3}
 
 # Load environment
 . ~/.bashrc
 
 module load ffmpeg
 
-# Configuration
-dataset_name="brainwidemap"
-account_name="bezq"
-username="$(whoami)"
-
-base_path="/work/nvme/${account_name}/${username}/${dataset_name}"
-data_path="${base_path}/beast/extracted_frames/${eid}-${camera}"
-checkpoint_path="${base_path}/beast/checkpoints/${eid}-${camera}"
-
-echo "Output will be saved to: $base_path"
+echo "Output will be saved to: $checkpoint_path"
 
 # Change to repo root
 cd ..
 
 # Activate environment
-conda activate brainwide
+conda activate beast
 
-beast train --config configs/vit.yaml \
+beast train --config "$config_path" \
   --data "$data_path" \
   --output "$checkpoint_path"
-
-# beast train --config configs/vit-s.yaml \
-#   --data "$data_path" \
-#   --output "${checkpoint_path}/vit-s"
 
 # Deactivate environment
 conda deactivate

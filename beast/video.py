@@ -153,7 +153,7 @@ def get_frames_from_idxs(
     """
     should_release = False
     if cap is None:
-        cap = cv2.VideoCapture(video_file)
+        cap = cv2.VideoCapture(str(video_file))
         should_release = True
 
     try:
@@ -243,7 +243,7 @@ def read_nth_frames(
     """
 
     # Open the video file
-    cap = cv2.VideoCapture(video_file)
+    cap = cv2.VideoCapture(str(video_file))
 
     if not cap.isOpened():
         raise IOError(f'Error opening video file {video_file}')

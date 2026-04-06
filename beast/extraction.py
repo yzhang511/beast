@@ -36,6 +36,8 @@ def extract_frames(
     method: frame selection method; currently supported:
       - 'pca_kmeans': Uses PCA dimensionality reduction followed by k-means clustering to select
         diverse, representative frames
+      - 'precomputed': Loads precomputed frame indices from a file in the output directory
+        named 'selected_frame_indices.txt'
     num_workers: number of parallel workers for processing (currently unused but reserved
       for future parallel processing implementation)
 
@@ -44,11 +46,6 @@ def extract_frames(
     Summary statistics containing:
         - 'total_frames': Total number of frames extracted across all videos
         - 'total_videos': Number of videos processed
-
-    Raises
-    ------
-    NotImplementedError
-        If an unsupported frame selection method is specified
 
     Examples
     --------
@@ -81,10 +78,12 @@ def extract_frames(
     Output directory:
         output_dir/
         ├── video1/
+        │   ├── selected_frame_indices.txt
         │   ├── frame_001.png
         │   ├── frame_045.png
         │   └── ...
         ├── video2/
+        │   ├── selected_frame_indices.txt
         │   ├── frame_012.png
         │   └── ...
         └── video3/
@@ -110,19 +109,35 @@ def extract_frames(
     total_videos = 0
     total_frames = 0
     for video_file in video_files:
+
+        n_digits = 8
+        extension = 'png'
+        save_dir = output_dir.joinpath(video_file.stem)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        
         if method == 'pca_kmeans':
             idxs = select_frame_idxs_kmeans(
                 video_file=video_file,
                 resize_dims=32,
                 n_frames_to_select=frames_per_video,
             )
+        elif method == 'precomputed':
+            # TODO: hard-coded for now; make this more general
+            selected_frames_dir = Path(str(save_dir).replace('rightCamera', 'leftCamera'))
+            idxs = np.loadtxt(
+                selected_frames_dir / 'selected_anchor_frames.txt', dtype=int
+            ).flatten()
+            print(f'Loaded precomputed frame indices from: {selected_frames_dir / "selected_anchor_frames.txt"}')
+            print(f'Selected {len(idxs)} frames')
         else:
             raise NotImplementedError
 
-        n_digits = 8
-        extension = 'png'
-        save_dir = output_dir.joinpath(video_file.stem)
-        export_frames(
+        # save anchor + context frame indices
+        idx_path = save_dir / 'selected_anchor_frames.txt'
+        np.savetxt(idx_path, idxs, fmt='%d')
+        print(f'Saved selected anchor frame indices to: {idx_path}')
+
+        total_frame_idxs = export_frames(
             video_file=video_file,
             output_dir=save_dir,
             frame_idxs=idxs,
@@ -133,9 +148,9 @@ def extract_frames(
 
         # save csv file inside same output directory
         frames_to_label = np.array([
-            "img%s.%s" % (str(idx).zfill(n_digits), extension) for idx in idxs
+            "img%s.%s" % (str(idx).zfill(n_digits), extension) for idx in total_frame_idxs
         ])
-        csv_path = save_dir / 'selected_frames.csv'
+        csv_path = save_dir / 'selected_total_frames.csv'
         np.savetxt(csv_path, np.sort(frames_to_label), delimiter=',', fmt='%s')
         print(f'Saved selected frame list to: {csv_path}')
 
@@ -238,7 +253,7 @@ def export_frames(
     extension: str = 'png',
     n_digits: int = 8,
     context_frames: int = 1,
-) -> None:
+) -> np.ndarray:
     """Export selected frames from a video to individual png files.
 
     Parameters
@@ -254,7 +269,7 @@ def export_frames(
 
     # expand frame_idxs to include context frames
     if context_frames > 0:
-        cap = cv2.VideoCapture(video_file)
+        cap = cv2.VideoCapture(str(video_file))
         context_vec = np.arange(-context_frames, context_frames + 1)
         frame_idxs = (frame_idxs[None, :] + context_vec[:, None]).flatten()
         frame_idxs.sort()
@@ -270,6 +285,8 @@ def export_frames(
     output_dir.mkdir(parents=True, exist_ok=True)
     for frame, idx in zip(frames, frame_idxs):
         cv2.imwrite(
-            filename=output_dir.joinpath(f'img{str(idx).zfill(n_digits)}.{extension}'),
+            filename=str(output_dir.joinpath(f'img{str(idx).zfill(n_digits)}.{extension}')),
             img=cv2.cvtColor(frame.transpose(1, 2, 0), cv2.COLOR_RGB2BGR),
         )
+
+    return frame_idxs

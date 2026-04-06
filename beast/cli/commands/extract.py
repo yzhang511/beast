@@ -42,7 +42,7 @@ def register_parser(subparsers):
     )
     optional.add_argument(
         '--method', '-m',
-        choices=['uniform', 'random', 'pca_kmeans'],
+        choices=['uniform', 'random', 'pca_kmeans', 'precomputed'],
         default='pca_kmeans',
         help='Frame extraction method (default: pca_kmeans)',
     )

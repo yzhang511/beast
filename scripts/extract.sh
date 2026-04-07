@@ -24,7 +24,7 @@ echo "Output will be saved to: $output_path"
 cd ..
 
 # Activate environment
-conda activate brainwide
+conda activate beast
 
 beast extract --input "$input_path" \
   --output "$output_path" \

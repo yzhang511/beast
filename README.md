@@ -10,6 +10,10 @@ for downstream tasks like pose estimation, action segmentation, and neural encod
 
 See the preprint [here](https://arxiv.org/pdf/2507.09513). 
 
+## ⚠️
+
+We use the forked repository to run baseline models for our NeurIPS 2026 submission, in order to unify our data splits and training pipelines.
+
 ## Installation
 
 ### Step 1: Install ffmpeg
@@ -37,23 +41,27 @@ conda activate beast
 ```
 
 ### Step 3: Download and install
-Move to your home directory (or wherever you would like to download the code) and install via Github clone or through PyPI.
+Move to your home directory (or wherever you would like to download the code) and install via Github clone.
 
 For Github cloning:
 
 ```commandline
-git clone https://github.com/paninski-lab/beast
+git clone https://github.com/yzhang511/beast
 cd beast
 pip install -e .
 ```
 
-For installation through PyPI:
+Install packages for working with IBL neural datasets:
 
 ```commandline
-pip install beast-backbones
+pip install ONE-api iblutil iblatlas ibllib ibl-neuropixel
 ```
 
-## Usage
+## NeurIPS 2026 Usage
+
+See the markdown files in `docs` for detailed instructions on data downloading, model training, and evaluation.
+
+## General Usage
 
 `beast` comes with a simple command line interface. To get more information, run
 ```commandline

@@ -1,7 +1,6 @@
-## Extract IBL video frames
+## Extract IBL data
 
-
-#### Extract data for fine-tuning
+#### Extract video frames for model fine-tuning
 
 (< 0.25 hours on CPU) To extract video data for fine-tuning, run the following commands in order:
 ```{bash}
@@ -18,7 +17,7 @@ beast extract \
     --frames-per-video 700
 ```
 
-#### Extract data for pre-training
+#### Extract video frames for model pre-training
 
 (< 1.5 hours on CPU) To extract video data for pre-training, run the following commands in order:
 ```{bash}
@@ -35,6 +34,25 @@ beast extract \
     --frames-per-video 400
 ```
 
-#### Extract data for evaluation
+#### Extract neural and behavior data for model evaluation
+
+Run the following command to extract data for the 5 EIDs used for fine-tuning and evaluation:
+```{bash}
+source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTPUT_PATH NUM_TRIALS
+```
+**Arguments**:
+- `ONE_CACHE_PATH`
+   Path to the directory where raw data downloaded from the IBL database will be cached.
+- `VIDEO_TIMESTAMPS`
+   Path to the video timestamp file.
+   *(Note: left and right videos share the same timestamps.)*
+- `OUTPUT_PATH`
+   Directory where the extracted neural and behavioral data will be saved.
+- `NUM_TRIALS`
+   Number of time intervals to extract from the neural data.
+   *(Note: these intervals do not follow the trial structure.)*
+
+
+#### Extract video frames using the extracted timestamps
 
 TODO

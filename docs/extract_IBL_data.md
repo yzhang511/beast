@@ -52,6 +52,7 @@ source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTP
    Number of time intervals to extract from the neural data.
    *(Note: these intervals do not follow the trial structure.)*
 
+**NOTE**: Let’s use `NUM_TRIALS = 400` for our NeurIPS submission.
 
 #### Extract video frames using the extracted timestamps
 

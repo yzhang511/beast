@@ -44,7 +44,7 @@ source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTP
 - `ONE_CACHE_PATH`
    Path to the directory where raw data downloaded from the IBL database will be cached.
 - `VIDEO_TIMESTAMPS`
-   Path to the video timestamp file.
+   Path to the directory containing video timestamp files.
    *(Note: left and right videos share the same timestamps.)*
 - `OUTPUT_PATH`
    Directory where the extracted neural and behavioral data will be saved.

@@ -27,7 +27,7 @@ echo "Output will be saved to: $output_path"
 cd ..
 
 # Activate environment
-conda activate brainwide
+conda activate beast
 
 python beast/extract_neural_data.py --eid "$eid" \
   --one_cache_path "$one_cache_path" \

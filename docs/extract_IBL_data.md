@@ -36,6 +36,8 @@ beast extract \
 
 #### Extract neural and behavior data for model evaluation
 
+Before extraction, we need to ensure that the video timestamps 
+
 Run the following command to extract data for the 5 EIDs used for fine-tuning and evaluation:
 ```{bash}
 source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTPUT_PATH NUM_TRIALS
@@ -56,4 +58,12 @@ source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTP
 
 #### Extract video frames using the extracted timestamps
 
-TODO
+(< 1 hours on CPU) To extract video frames for evaluation according to the time intervals extracted for the neural data, run the following commands for both the left and right views:
+```{bash}
+beast extract \
+    --input /your/path/videos/finetune/leftCamera.video \
+    --output /your/path/extracted_frames/eval/leftCamera.video \
+    --method timestamp \
+    --timestamp_dir /your/path/timestamp \
+    --neural_data_dir /your/path/neural_data
+```

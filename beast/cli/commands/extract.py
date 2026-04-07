@@ -42,7 +42,7 @@ def register_parser(subparsers):
     )
     optional.add_argument(
         '--method', '-m',
-        choices=['uniform', 'random', 'pca_kmeans', 'precomputed'],
+        choices=['uniform', 'random', 'pca_kmeans', 'precomputed', 'timestamp'],
         default='pca_kmeans',
         help='Frame extraction method (default: pca_kmeans)',
     )
@@ -51,6 +51,16 @@ def register_parser(subparsers):
         type=int,
         default=4,
         help='Number of worker processes (default: 4)',
+    )
+    optional.add_argument(
+        '--timestamp_dir', 
+        type=Path,
+        help='Directory containing video timestamps',
+    )
+    optional.add_argument(
+        '--neural_data_dir',
+        type=Path,
+        help='Directory containing neural and behavior data',
     )
 
 
@@ -74,6 +84,8 @@ def handle(args):
         frames_per_video=args.frames_per_video,
         method=args.method,
         num_workers=args.workers,
+        timestamp_dir=args.timestamp_dir,
+        neural_data_dir=args.neural_data_dir,
     )
 
     # Print summary

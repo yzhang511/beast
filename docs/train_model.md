@@ -2,7 +2,7 @@
 
 #### Train from scratch
 
-(~ XXX hours on GPU) To train a single-session model on a video from each session, run the following command:
+To train a single-session model on a video from each session, run the following command:
 ```{bash}
 beast train --config configs/vit.yaml \
   --data /your/data/path \
@@ -14,7 +14,7 @@ NOTE:
 
 #### Pretrain
 
-TODO
+**NOTE**: For each view, please figure out how to pretrain a model on video frames extracted from multiple sessions on your own.
 
 #### Fine-tune
 

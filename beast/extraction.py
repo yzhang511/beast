@@ -1,5 +1,9 @@
+from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
+
+from tqdm import tqdm
 
 import cv2
 import numpy as np
@@ -20,6 +24,8 @@ def extract_frames(
     frames_per_video: int = 500,
     method: str = 'pca_kmeans',
     num_workers: int = 8,
+    timestamp_dir: Path | str | None = None,
+    neural_data_dir: Path | str | None = None,
 ) -> dict:
     """Extract representative frames from videos using intelligent sampling methods.
 
@@ -38,8 +44,11 @@ def extract_frames(
         diverse, representative frames
       - 'precomputed': Loads precomputed frame indices from a file in the output directory
         named 'selected_frame_indices.txt'
+      - 'timestamp': Select frame indices from provided time intervals; requires `timestamp_dir` and `neural_data_dir`
     num_workers: number of parallel workers for processing (currently unused but reserved
       for future parallel processing implementation)
+    timestamp_dir: directory containing video timestamps from each session
+    neural_data_dir: directory containing neural and behavior data from each session
 
     Returns
     -------
@@ -89,6 +98,18 @@ def extract_frames(
         └── video3/
             └── ...
 
+    Timestamp directory:
+        timestamp_dir/
+        ├── _ibl_leftCamera.times.eid1.npy
+        ├── _ibl_leftCamera.times.eid2.npy
+        └── ...
+
+    Neural data directory:
+        neural_data_dir/
+        ├── eid1_aligned.npz
+        ├── eid2_aligned.npz
+        └── ...
+
     Notes
     -----
     - Only processes .mp4 and .avi video files
@@ -129,37 +150,138 @@ def extract_frames(
             ).flatten()
             print(f'Loaded precomputed frame indices from: {selected_frames_dir / "selected_anchor_frames.txt"}')
             print(f'Selected {len(idxs)} frames')
+        elif method == 'timestamp':
+            idxs_dict = select_frame_idxs_timestamp(
+                video_file=video_file,
+                timestamp_dir=timestamp_dir,
+                neural_data_dir=neural_data_dir,
+            )
         else:
             raise NotImplementedError
 
-        # save anchor + context frame indices
-        idx_path = save_dir / 'selected_anchor_frames.txt'
-        np.savetxt(idx_path, idxs, fmt='%d')
-        print(f'Saved selected anchor frame indices to: {idx_path}')
-
-        total_frame_idxs = export_frames(
-            video_file=video_file,
-            output_dir=save_dir,
-            frame_idxs=idxs,
-            context_frames=1,
-            n_digits=n_digits,
-            extension=extension,
-        )
-
-        # save csv file inside same output directory
-        frames_to_label = np.array([
-            "img%s.%s" % (str(idx).zfill(n_digits), extension) for idx in total_frame_idxs
-        ])
-        csv_path = save_dir / 'selected_total_frames.csv'
-        np.savetxt(csv_path, np.sort(frames_to_label), delimiter=',', fmt='%s')
-        print(f'Saved selected frame list to: {csv_path}')
+        if method in ['pca_kmeans', 'precomputed']:
+            # save anchor + context frame indices
+            idx_path = save_dir / 'selected_anchor_frames.txt'
+            np.savetxt(idx_path, idxs, fmt='%d')
+            print(f'Saved selected anchor frame indices to: {idx_path}')
+            total_frame_idxs = export_frames(
+                video_file=video_file,
+                output_dir=save_dir,
+                frame_idxs=idxs,
+                context_frames=1,
+                n_digits=n_digits,
+                extension=extension,
+            )
+            # save csv file inside same output directory
+            frames_to_label = np.array([
+                "img%s.%s" % (str(idx).zfill(n_digits), extension) for idx in total_frame_idxs
+            ])
+            csv_path = save_dir / 'selected_total_frames.csv'
+            np.savetxt(csv_path, np.sort(frames_to_label), delimiter=',', fmt='%s')
+            print(f'Saved selected frame list to: {csv_path}')
+            total_frames += len(idxs)
+        elif method == 'timestamp':
+            for split, idxs in idxs_dict.items():
+                frames_to_label = []
+                for interval_idx, idx in tqdm(enumerate(idxs), total=len(idxs), desc=f'Exporting frames for {split}'):
+                    _ = export_frames(
+                        video_file=video_file,
+                        output_dir=save_dir.joinpath(split),
+                        frame_idxs=idx,
+                        context_frames=0,
+                        n_digits=n_digits,
+                        extension=extension,
+                        interval_idx=interval_idx,
+                    )
+                    total_frames += len(idx)
+                    frames_to_label.extend(
+                        "img%s.%s" % (str(_idx).zfill(n_digits), extension) for _idx in idx
+                    )
+                # save csv file inside same output directory
+                frames_to_label = np.array(frames_to_label)
+                csv_path = save_dir / split / 'selected_total_frames.csv'
+                np.savetxt(csv_path, np.sort(frames_to_label), delimiter=',', fmt='%s')
+                print(f'Saved selected frame list to: {csv_path}')
+        else:
+            raise NotImplementedError
 
         total_videos += 1
-        total_frames += len(idxs)
 
     return {
         'total_frames': total_frames,
         'total_videos': total_videos,
+    }
+
+
+def interval_to_frame_indices(
+    intervals: np.ndarray,
+    timestamps: np.ndarray,
+    *,
+    video_fps: float = 60.0,
+) -> np.ndarray:
+    """For each row ``[t_lo, t_hi]``, return frame indices with ``t_lo <= t < t_hi`` (seconds).
+
+    ``timestamps`` are per-frame times in seconds (e.g. IBL ``_ibl_*Camera.times``).
+    Output is ``dtype=object``; entry ``i`` is a 1D ``int64`` array of frame indices.
+
+    Indices are truncated to at most ``round((t_hi - t_lo) * video_fps)`` per interval so
+    boundary or FP noise cannot yield extra frames (e.g. 61 timestamps in a 1 s bin → 60).
+    """
+    intervals = np.asarray(intervals, dtype=np.float64)
+    if intervals.ndim != 2 or intervals.shape[1] != 2:
+        raise ValueError(f'Expected intervals of shape (n, 2), got {intervals.shape}')
+    timestamps = np.asarray(timestamps, dtype=np.float64).ravel()
+    rows: list[np.ndarray] = []
+    for t_lo, t_hi in intervals:
+        mask = (timestamps >= t_lo) & (timestamps < t_hi)
+        idxs = np.flatnonzero(mask).astype(np.int64, copy=False)
+        max_count = int(round((float(t_hi) - float(t_lo)) * video_fps))
+        if max_count > 0 and idxs.size > max_count:
+            idxs = idxs[:max_count]
+        rows.append(idxs)
+    return np.asarray(rows, dtype=object)
+
+
+@typechecked
+def select_frame_idxs_timestamp(
+    video_file: str | Path,
+    timestamp_dir: Path | str,
+    neural_data_dir: Path | str,
+) -> dict:
+    """Map train / val / test time intervals (seconds) to video frame indices per interval.
+
+    Loads ``train_intervals``, ``val_intervals``, ``test_intervals`` from
+    ``{eid}_aligned.npz`` and camera frame times from
+    ``_ibl_{left|right}Camera.times.{eid}.npy``.
+
+    Returns
+    -------
+    train_idxs, val_idxs, test_idxs
+        Each is ``np.ndarray`` with ``dtype=object``; element ``i`` is a 1D int array of
+        frame indices falling in ``intervals[i]`` (half-open ``[t_lo, t_hi)`` in seconds).
+    """
+    timestamp_dir = Path(timestamp_dir)
+    neural_data_dir = Path(neural_data_dir)
+    eid = video_file.stem.split('.')[-1]
+    npz_path = neural_data_dir / eid / f'{eid}_aligned.npz'
+    ts_path = timestamp_dir / f'_ibl_leftCamera.times.{eid}.npy'
+    if not ts_path.is_file():
+        raise FileNotFoundError(f'Missing camera timestamps: {ts_path}')
+
+    with np.load(npz_path) as data:
+        train_intervals = data['train_intervals']
+        val_intervals = data['val_intervals']
+        test_intervals = data['test_intervals']
+
+    timestamps = np.load(ts_path)
+
+    train_idxs = interval_to_frame_indices(train_intervals, timestamps)
+    val_idxs = interval_to_frame_indices(val_intervals, timestamps)
+    test_idxs = interval_to_frame_indices(test_intervals, timestamps)
+    return {
+        'train': train_idxs,
+        'val': val_idxs,
+        'test': test_idxs,
     }
 
 
@@ -253,6 +375,7 @@ def export_frames(
     extension: str = 'png',
     n_digits: int = 8,
     context_frames: int = 1,
+    interval_idx: int | None = None,
 ) -> np.ndarray:
     """Export selected frames from a video to individual png files.
 
@@ -264,7 +387,7 @@ def export_frames(
     extension: only 'png' currently supported
     n_digits: number of digits in image names
     context_frames: number of frames on either side of selected frame to also save
-
+    interval_idx: index of interval within split
     """
 
     # expand frame_idxs to include context frames
@@ -283,9 +406,14 @@ def export_frames(
 
     # save out frames
     output_dir.mkdir(parents=True, exist_ok=True)
-    for frame, idx in zip(frames, frame_idxs):
+    for tbin_idx, (frame, idx) in enumerate(zip(frames, frame_idxs)):
+        if interval_idx is not None:
+            filename = str(output_dir.joinpath(f'interval{interval_idx}timebin{tbin_idx}.{extension}'))
+        else:
+            filename = str(output_dir.joinpath(f'img{str(idx).zfill(n_digits)}.{extension}'))
+        
         cv2.imwrite(
-            filename=str(output_dir.joinpath(f'img{str(idx).zfill(n_digits)}.{extension}')),
+            filename=filename,
             img=cv2.cvtColor(frame.transpose(1, 2, 0), cv2.COLOR_RGB2BGR),
         )
 

@@ -27,9 +27,15 @@ NOTE:
 
 For both encoding and decoding, we want to perform hyperparameter tuning using `RayTune`. 
 
-Here are some instructions on training both RRR and TCN encoders with RayTune, and then evaluating the neural reconstruction quality using bps and R2 metrics:
+Here is some example code for training both RRR and TCN encoders with RayTune and then evaluating neural prediction quality using the bps metric:
 
 - [train_rrr_with_tune](https://github.com/yzhang511/video-spike/blob/main/src/test.py#L445C26-L445C45)
 - [train_tcn_with_tune](https://github.com/yzhang511/video-spike/blob/main/src/test.py#L447)
 
-For decoding, you can similarly obtain the R2 metrics for each behavior variable or video latent dimension, rather than a single neuron.
+For decoding, you can similarly obtain the R2 metric for each behavior variable or video latent dimension, rather than a single neuron.
+
+NOTE: 
+- Since the code provided above is only an example, you can adapt it to this codebase to train the encoder and decoder with hyperparameter tuning.
+- For each session, we always train on the training set, validate on the validation set, and report model performance on the test set.
+- For hyperparameter tuning, you can use the default setup (e.g., the number of random models) in the provided example code.
+- For neural encoding, we use bps (see [example code here](https://github.com/yzhang511/video-spike/blob/main/src/test.py#L448)) as the metric; for neural decoding, we use R2 (see [example code here](https://github.com/yzhang511/video-spike/blob/main/src/test.py#L449)) as the metric.

@@ -1,0 +1,41 @@
+# Linear PCA autoencoder (fit offline; load weights from pca_pickle_path)
+model:
+  seed: 0
+  checkpoint: null
+  model_class: pca
+  model_params:
+    image_size: 224
+    num_channels: 3
+    # Path to pickle from beast.models.pca.save_pca_model (or compatible keys)
+    pca_pickle_path: null # /PATH/TO/pca_model.pkl
+    # If no pickle (e.g. tests only), you may set n_components and zero-initialized subspace:
+    n_components: 50
+
+training:
+  seed: 0
+  imgaug: default
+  train_batch_size: 128
+  val_batch_size: 1024
+  test_batch_size: 128
+  num_epochs: 100
+  num_workers: 8
+  num_gpus: 1
+  num_nodes: 1
+  log_every_n_steps: 10
+  check_val_every_n_epoch: 5
+
+optimizer:
+  type: Adam
+  accumulate_grad_batches: 1
+  lr: 5.e-4
+  wd: 0.05
+  scheduler: cosine
+  warmup_pct: 0.15   
+  div_factor: 10
+  gamma: 0.5
+  steps:             # for step
+    - 200
+    - 400
+
+data:
+  data_dir: null # /PATH/TO/DATA

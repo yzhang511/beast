@@ -10,6 +10,7 @@ from typeguard import typechecked
 
 from beast.inference import predict_images, predict_video
 from beast.models.base import BaseLightningModel
+from beast.models.pca import PCAAutoencoder
 from beast.models.resnets import ResnetAutoencoder
 from beast.models.vits import VisionTransformer
 from beast.train import train
@@ -37,7 +38,7 @@ class Model:
     MODEL_REGISTRY = {
         'vit': VisionTransformer,
         'resnet': ResnetAutoencoder,
-        # Add more models as needed
+        'pca': PCAAutoencoder,
     }
 
     def __init__(

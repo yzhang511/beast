@@ -17,7 +17,6 @@ eid=${1}
 one_cache_path=${2}
 video_timestamps=${3}
 output_path=${4}
-num_trials=${5}
 # CPUs assigned to this task
 n_workers="${SLURM_CPUS_PER_TASK:-1}"
 
@@ -33,7 +32,6 @@ python beast/extract_neural_data.py --eid "$eid" \
   --one_cache_path "$one_cache_path" \
   --video_timestamps "$video_timestamps" \
   --output_path "$output_path" \
-  --num_trials "$num_trials" \
   --n_workers "$n_workers"
 
 # Deactivate environment

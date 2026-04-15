@@ -36,11 +36,9 @@ beast extract \
 
 #### Extract neural and behavior data for model evaluation
 
-Before extraction, we need to ensure that the video timestamps 
-
 Run the following command to extract data for the 5 EIDs used for fine-tuning and evaluation:
 ```{bash}
-source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTPUT_PATH NUM_TRIALS
+source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTPUT_PATH
 ```
 **Arguments**:
 - `ONE_CACHE_PATH`
@@ -50,11 +48,7 @@ source scripts/batch_extract_neural_data.sh ONE_CACHE_PATH VIDEO_TIMESTAMPS OUTP
    *(Note: left and right videos share the same timestamps.)*
 - `OUTPUT_PATH`
    Directory where the extracted neural and behavioral data will be saved.
-- `NUM_TRIALS`
-   Number of time intervals to extract from the neural data.
-   *(Note: these intervals do not follow the trial structure.)*
 
-**NOTE**: Let’s use `NUM_TRIALS = 400` for our NeurIPS submission.
 
 #### Extract video frames using the extracted timestamps
 

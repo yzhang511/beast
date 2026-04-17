@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -26,6 +27,7 @@ def extract_frames(
     num_workers: int = 8,
     timestamp_dir: Path | str | None = None,
     neural_data_dir: Path | str | None = None,
+    eid: str | list[str] | None = None,
 ) -> dict:
     """Extract representative frames from videos using intelligent sampling methods.
 
@@ -49,6 +51,8 @@ def extract_frames(
       for future parallel processing implementation)
     timestamp_dir: directory containing video timestamps from each session
     neural_data_dir: directory containing neural and behavior data from each session
+    eid: if provided, only process videos whose filename contains one of the given session EIDs;
+        accepts a single string or a list of strings
 
     Returns
     -------
@@ -127,6 +131,11 @@ def extract_frames(
     print(f'Frames per video: {frames_per_video}')
 
     video_files = list(input_path.glob('*.mp4')) + list(input_path.glob('*.avi'))
+    if eid is not None:
+        if isinstance(eid, str):
+            eid = [eid]
+        video_files = [v for v in video_files if any(e in v.stem for e in eid)]
+        print(f'Filtered to {len(video_files)} video(s) matching EID(s): {eid}')
     total_videos = 0
     total_frames = 0
     for video_file in video_files:
@@ -183,6 +192,7 @@ def extract_frames(
         elif method == 'timestamp':
             for split, idxs in idxs_dict.items():
                 frames_to_label = []
+                frame_index_map = {}
                 for interval_idx, idx in tqdm(enumerate(idxs), total=len(idxs), desc=f'Exporting frames for {split}'):
                     _ = export_frames(
                         video_file=video_file,
@@ -197,11 +207,16 @@ def extract_frames(
                     frames_to_label.extend(
                         "img%s.%s" % (str(_idx).zfill(n_digits), extension) for _idx in idx
                     )
-                # save csv file inside same output directory
-                frames_to_label = np.array(frames_to_label)
+                    for tbin_idx, frame_index in enumerate(idx):
+                        frame_index_map[f'interval{interval_idx}timebin{tbin_idx}.{extension}'] = int(frame_index)
                 csv_path = save_dir / split / 'selected_total_frames.csv'
+                frames_to_label = np.array(frames_to_label)
                 np.savetxt(csv_path, np.sort(frames_to_label), delimiter=',', fmt='%s')
                 print(f'Saved selected frame list to: {csv_path}')
+                json_path = save_dir / split / 'frame_index_mapping.json'
+                with open(json_path, 'w', encoding='utf-8') as f:
+                    json.dump(frame_index_map, f, indent=2)
+                print(f'Saved frame index mapping to: {json_path}')
         else:
             raise NotImplementedError
 

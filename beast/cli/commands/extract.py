@@ -62,6 +62,13 @@ def register_parser(subparsers):
         type=Path,
         help='Directory containing neural and behavior data',
     )
+    optional.add_argument(
+        '--eid',
+        type=str,
+        nargs='+',
+        default=None,
+        help='One or more session EIDs to process; only videos whose filename contains a listed EID will be extracted',
+    )
 
 
 def handle(args):
@@ -86,6 +93,7 @@ def handle(args):
         num_workers=args.workers,
         timestamp_dir=args.timestamp_dir,
         neural_data_dir=args.neural_data_dir,
+        eid=args.eid,
     )
 
     # Print summary

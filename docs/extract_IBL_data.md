@@ -61,3 +61,12 @@ beast extract \
     --timestamp_dir /your/path/timestamp \
     --neural_data_dir /your/path/neural_data
 ```
+Added a JSON mapping file (frame_index_mapping.json) written alongside the CSV in each split directory. It maps each actual PNG filename to its video frame index:
+
+```{json}
+{
+  "interval0timebin0.png": 6000,
+  "interval0timebin1.png": 6001,
+  "interval1timebin0.png": 3000,
+  ...
+}

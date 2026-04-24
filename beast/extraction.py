@@ -160,7 +160,7 @@ def extract_frames(
             print(f'Loaded precomputed frame indices from: {selected_frames_dir / "selected_anchor_frames.txt"}')
             print(f'Selected {len(idxs)} frames')
         elif method == 'timestamp':
-            idxs_dict = select_frame_idxs_timestamp(
+            idxs_by_split, intervals_by_split = select_frame_idxs_timestamp(
                 video_file=video_file,
                 timestamp_dir=timestamp_dir,
                 neural_data_dir=neural_data_dir,
@@ -190,7 +190,13 @@ def extract_frames(
             print(f'Saved selected frame list to: {csv_path}')
             total_frames += len(idxs)
         elif method == 'timestamp':
-            for split, idxs in idxs_dict.items():
+            if 'leftCamera' in video_file.stem:
+                view = 'left'
+            elif 'rightCamera' in video_file.stem:
+                view = 'right'
+            for split in ('train', 'val', 'test'):
+                idxs = idxs_by_split[split]
+                intervals = intervals_by_split[split]
                 frames_to_label = []
                 frame_index_map = {}
                 for interval_idx, idx in tqdm(enumerate(idxs), total=len(idxs), desc=f'Exporting frames for {split}'):
@@ -207,8 +213,14 @@ def extract_frames(
                     frames_to_label.extend(
                         "img%s.%s" % (str(_idx).zfill(n_digits), extension) for _idx in idx
                     )
+                    t_start, t_end = intervals[interval_idx]
                     for tbin_idx, frame_index in enumerate(idx):
-                        frame_index_map[f'interval{interval_idx}timebin{tbin_idx}.{extension}'] = int(frame_index)
+                        frame_index_map[f'interval{interval_idx}timebin{tbin_idx}.{extension}'] = {
+                            f'{view}_source_frame_index': int(frame_index),
+                            'neural_trial_idx': interval_idx,
+                            'neural_bin_idx': tbin_idx,
+                            'neural_interval_sec': [float(t_start), float(t_end)],
+                        }
                 csv_path = save_dir / split / 'selected_total_frames.csv'
                 frames_to_label = np.array(frames_to_label)
                 np.savetxt(csv_path, np.sort(frames_to_label), delimiter=',', fmt='%s')
@@ -262,7 +274,7 @@ def select_frame_idxs_timestamp(
     video_file: str | Path,
     timestamp_dir: Path | str,
     neural_data_dir: Path | str,
-) -> dict:
+) -> tuple[dict, dict]:
     """Map train / val / test time intervals (seconds) to video frame indices per interval.
 
     Loads ``train_intervals``, ``val_intervals``, ``test_intervals`` from
@@ -271,9 +283,14 @@ def select_frame_idxs_timestamp(
 
     Returns
     -------
-    train_idxs, val_idxs, test_idxs
+    idxs_by_split
+        train_idxs, val_idxs, test_idxs
         Each is ``np.ndarray`` with ``dtype=object``; element ``i`` is a 1D int array of
         frame indices falling in ``intervals[i]`` (half-open ``[t_lo, t_hi)`` in seconds).
+    
+    intervals_by_split
+        ``intervals_by_split`` maps the same keys to ``(n_trials, 2)`` arrays with
+        ``[t_start, t_end]`` in seconds per row.
     """
     timestamp_dir = Path(timestamp_dir)
     neural_data_dir = Path(neural_data_dir)
@@ -293,11 +310,17 @@ def select_frame_idxs_timestamp(
     train_idxs = interval_to_frame_indices(train_intervals, timestamps)
     val_idxs = interval_to_frame_indices(val_intervals, timestamps)
     test_idxs = interval_to_frame_indices(test_intervals, timestamps)
-    return {
+    idxs_by_split = {
         'train': train_idxs,
         'val': val_idxs,
         'test': test_idxs,
     }
+    intervals_by_split = {
+        'train': train_intervals,
+        'val': val_intervals,
+        'test': test_intervals,
+    }
+    return idxs_by_split, intervals_by_split
 
 
 @typechecked

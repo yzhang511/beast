@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser()
     ap.add_argument("--eid", type=str)
     ap.add_argument("--video_timestamps", type=str)
-    ap.add_argument("--num_trials", type=int, default=100)
+    ap.add_argument("--num_trials", type=int, default=400)
     ap.add_argument("--one_cache_path", type=str)
     ap.add_argument("--output_path", type=str, help="Directory to write npz/json/pkl bundle.")
     ap.add_argument("--n_workers", type=int, default=1)

@@ -5,7 +5,7 @@
 #SBATCH --partition=cpu
 #SBATCH -c 1
 #SBATCH --mem 200000
-#SBATCH -t 0-00:30:00
+#SBATCH -t 0-00:20:00
 #SBATCH --export=ALL
 
 # Load environment
@@ -26,13 +26,14 @@ echo "Output will be saved to: $output_path"
 cd ..
 
 # Activate environment
-conda activate beast
+conda activate erayzer
 
 python beast/extract_neural_data.py --eid "$eid" \
   --one_cache_path "$one_cache_path" \
   --video_timestamps "$video_timestamps" \
   --output_path "$output_path" \
-  --n_workers "$n_workers"
+  --n_workers "$n_workers" \
+  --num_trials 400
 
 # Deactivate environment
 conda deactivate

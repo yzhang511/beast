@@ -91,6 +91,7 @@ def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser()
     ap.add_argument("--eid", type=str)
     ap.add_argument("--video_timestamps", type=str)
+    ap.add_argument("--num_trials", type=int, default=100)
     ap.add_argument("--one_cache_path", type=str)
     ap.add_argument("--output_path", type=str, help="Directory to write npz/json/pkl bundle.")
     ap.add_argument("--n_workers", type=int, default=1)
@@ -108,6 +109,8 @@ def main() -> None:
         raise ValueError("--output_path is required to save the extract bundle.")
     if args.video_timestamps is None:
         raise ValueError("--video_timestamps is required.")
+    if args.num_trials is None:
+        raise ValueError("--num_trials is required to sample data from each session.")
 
     eid = args.eid
 
@@ -116,8 +119,6 @@ def main() -> None:
         "binsize": 1 / 60,  # 60 frames per second
         "single_region": False,
         "fr_thresh": 0.2,
-        "time_window": (-0.2, 0.8),
-        "align_time": 'stimOn_times', 
     }
 
     one = ONE(
@@ -163,10 +164,19 @@ def main() -> None:
     min_timestamp = int(round(min_timestamp)) + 1
     max_timestamp = int(round(max_timestamp)) - 1
 
+    intervals = create_intervals(min_timestamp, max_timestamp, params["interval_len"])
+
+    assert len(intervals) >= args.num_trials, "Not enough intervals to sample from."
+
+    rng = np.random.default_rng(42)
+    trial_idxs = rng.choice(np.arange(len(intervals)), args.num_trials, replace=False)
+    intervals = intervals[trial_idxs]
+
     bin_spikes, clusters_used_in_bins = bin_spiking_data(
         region_cluster_ids,
         neural_dict,
-        trials_df=trials_dict["trials_df"],
+        intervals=intervals,
+        trials_df=None,
         n_workers=args.n_workers,
         **params,
     )
@@ -192,7 +202,8 @@ def main() -> None:
         one,
         eid,
         DYNAMIC_VARS,
-        trials_df=trials_dict["trials_df"],
+        intervals=intervals,
+        trials_df=None,
         allow_nans=True,
         n_workers=args.n_workers,
         **params,
@@ -202,31 +213,23 @@ def main() -> None:
         align_bin_spikes, align_bin_beh, target_mask, bad_trial_idxs = align_data(
             bin_spikes,
             bin_beh,
-            DYNAMIC_VARS,
+            list(bin_beh.keys()),
         )
     except ValueError as e:
         logging.info("Skip EID %s due to error: %s", eid, e)
         sys.exit(0)
 
-    trial_mask = np.array(target_mask).astype(bool).tolist()
-    trials_dict['trials_df'] = trials_dict['trials_df'][trial_mask]
-    intervals = np.vstack([
-        trials_dict['trials_df'][params["align_time"]] + params["time_window"][0],
-        trials_dict['trials_df'][params["align_time"]] + params["time_window"][1]
-    ]).T
-
-    start, end = intervals.T
-    valid_interval_mask = (start >= min_timestamp) & (end <= max_timestamp)
-    aligned_intervals = intervals[valid_interval_mask]
-    align_bin_spikes = align_bin_spikes[valid_interval_mask]
-    for beh in align_bin_beh.keys():
-        align_bin_beh[beh] = align_bin_beh[beh][valid_interval_mask]
+    _bad = np.asarray(bad_trial_idxs, dtype=np.intp).ravel()
+    aligned_intervals = np.delete(np.asarray(intervals), _bad, axis=0)
+    if aligned_intervals.shape[0] != len(align_bin_spikes):
+        raise RuntimeError(
+            f"aligned_intervals length {aligned_intervals.shape[0]} != "
+            f"align_bin_spikes trials {len(align_bin_spikes)}"
+        )
 
     num_trials = len(aligned_intervals)
     rng = np.random.default_rng(42)
     perm = rng.choice(np.arange(num_trials), num_trials, replace=False)
-
-    aligned_intervals = aligned_intervals[perm]
 
     train_idxs = perm[: int(0.7 * num_trials)]
     val_idxs = perm[int(0.7 * num_trials) : int(0.8 * num_trials)]
@@ -241,10 +244,6 @@ def main() -> None:
     train_intervals = aligned_intervals[train_idxs]
     val_intervals = aligned_intervals[val_idxs]
     test_intervals = aligned_intervals[test_idxs]
-
-    print(f"# Train trials: {len(train_intervals)}")
-    print(f"# Val trials: {len(val_intervals)}")
-    print(f"# Test trials: {len(test_intervals)}")
 
     _save_extract_bundle(
         out_root=Path(args.output_path),

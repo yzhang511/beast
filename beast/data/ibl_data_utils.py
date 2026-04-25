@@ -666,10 +666,7 @@ def align_data(
             beh_of_interest = aligned_binned_behaviors[beh]
             m = np.nanmean(beh_of_interest)
             beh_of_interest = np.where(np.isnan(beh_of_interest), m, beh_of_interest)
-            for dim in range(beh_of_interest.shape[-1]):
-                top = beh_of_interest[...,dim] - np.min(beh_of_interest[...,dim])
-                bottom = np.max(beh_of_interest[...,dim]) - np.min(beh_of_interest[...,dim])
-                aligned_binned_behaviors[beh][...,dim] = top / bottom
+            aligned_binned_behaviors[beh] = beh_of_interest
     
     return (
         aligned_binned_spikes, 
